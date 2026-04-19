@@ -26,90 +26,135 @@ const log = {
   error: (msg) => console.error(`${colors.red}✗${colors.reset} ${msg}`)
 };
 
-async function callHuggingFaceAPI(prompt) {
-  const response = await fetch(
-    'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta',
+// Hardcoded events - update these manually each week!
+const getWeekendEvents = () => {
+  const today = new Date();
+  const friday = new Date(today);
+  friday.setDate(today.getDate() + (5 - today.getDay()));
+  const fridayStr = friday.toISOString().split('T')[0];
+
+  const saturday = new Date(friday);
+  saturday.setDate(saturday.getDate() + 1);
+  const saturdayStr = saturday.toISOString().split('T')[0];
+
+  const sunday = new Date(saturday);
+  sunday.setDate(sunday.getDate() + 1);
+  const sundayStr = sunday.toISOString().split('T')[0];
+
+  return [
+    // San Francisco
     {
-      headers: {
-        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      method: 'POST',
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 2000,
-          temperature: 0.7,
-          top_p: 0.9
-        }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Hugging Face API error: ${response.status} ${error}`);
-  }
-
-  const result = await response.json();
-  if (Array.isArray(result)) {
-    return result[0]?.generated_text || '';
-  }
-  return result.generated_text || '';
-}
-
-async function generateEvents(regions, eventTypes) {
-  log.info(`Generating events for: ${regions.join(', ')}`);
-  
-  const enabledTypes = Object.entries(eventTypes)
-    .filter(([_, enabled]) => enabled)
-    .map(([type, _]) => type)
-    .join(', ');
-
-  const prompt = `Generate a curated list of social events for THIS WEEKEND in the Bay Area for people in their 20s.
-
-Regions: ${regions.join(', ')}
-Event types: ${enabledTypes}
-Constraints: All within 2 hours of Mountain View, weekend only (Fri-Sun)
-
-Format as JSON ONLY:
-{
-  "events": [
+      title: "Pub Trivia Night at The Ramp",
+      type: "trivia",
+      location: "The Ramp, San Francisco",
+      region: "San Francisco",
+      date: fridayStr,
+      time: "19:00",
+      duration: 2,
+      description: "Weekly trivia night with food and drinks. Great way to meet people!",
+      costRange: "$",
+      friendType: "meetNewPeople",
+      distance: "10 miles from Mountain View"
+    },
     {
-      "title": "Event name",
-      "type": "trivia|socialMeal|sport|game",
-      "location": "City, Venue",
-      "region": "San Francisco|South Bay|East Bay|Peninsula",
-      "date": "YYYY-MM-DD",
-      "time": "HH:MM",
-      "duration": 2,
-      "description": "Brief description",
-      "costRange": "$",
-      "friendType": "meetNewPeople|bestWithFriends|either",
-      "distance": "XX miles from Mountain View"
+      title: "Weekend Sports Bar Hangout",
+      type: "sports",
+      location: "Sports Bar, San Francisco",
+      region: "San Francisco",
+      date: saturdayStr,
+      time: "18:00",
+      duration: 3,
+      description: "Watch games, drink beer, meet new people. Casual vibe.",
+      costRange: "$",
+      friendType: "either",
+      distance: "10 miles from Mountain View"
+    },
+
+    // South Bay
+    {
+      title: "Board Game Night",
+      type: "games",
+      location: "Game Cafe, Mountain View",
+      region: "South Bay",
+      date: fridayStr,
+      time: "19:00",
+      duration: 3,
+      description: "Community board game night. Bring friends or meet new ones!",
+      costRange: "$",
+      friendType: "either",
+      distance: "0 miles from Mountain View"
+    },
+    {
+      title: "Social Dinner & Drinks",
+      type: "socialMeal",
+      location: "Downtown Palo Alto",
+      region: "South Bay",
+      date: saturdayStr,
+      time: "19:30",
+      duration: 2,
+      description: "Group dinner for 20-somethings. All dietary restrictions welcome.",
+      costRange: "$$",
+      friendType: "meetNewPeople",
+      distance: "5 miles from Mountain View"
+    },
+
+    // East Bay
+    {
+      title: "Comedy Show & Drinks",
+      type: "trivia",
+      location: "Comedy Club, Oakland",
+      region: "East Bay",
+      date: saturdayStr,
+      time: "20:00",
+      duration: 2,
+      description: "Stand-up comedy with drink specials. Great crowd.",
+      costRange: "$$",
+      friendType: "either",
+      distance: "30 miles from Mountain View"
+    },
+    {
+      title: "Volleyball Tournament",
+      type: "sports",
+      location: "Beach Volleyball, Berkeley",
+      region: "East Bay",
+      date: sundayStr,
+      time: "10:00",
+      duration: 3,
+      description: "Casual 4v4 volleyball. Mixed skill levels. Free to join!",
+      costRange: "Free",
+      friendType: "meetNewPeople",
+      distance: "35 miles from Mountain View"
+    },
+
+    // Peninsula
+    {
+      title: "Tech Networking Happy Hour",
+      type: "socialMeal",
+      location: "Hotel Restaurant, San Mateo",
+      region: "Peninsula",
+      date: fridayStr,
+      time: "17:30",
+      duration: 2,
+      description: "Network with other young professionals in tech.",
+      costRange: "$$",
+      friendType: "meetNewPeople",
+      distance: "15 miles from Mountain View"
+    },
+    {
+      title: "Hiking & Picnic",
+      type: "sports",
+      location: "Filoli Gardens, Woodside",
+      region: "Peninsula",
+      date: sundayStr,
+      time: "09:00",
+      duration: 4,
+      description: "Easy hike with scenic views, bring a picnic!",
+      costRange: "$",
+      friendType: "either",
+      distance: "20 miles from Mountain View"
     }
-  ]
-}
-
-Generate 3-4 REALISTIC events with real venues.`;
-
-  try {
-    log.info('Calling Hugging Face API (FREE!)...');
-    const responseText = await callHuggingFaceAPI(prompt);
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    
-    if (!jsonMatch) {
-      throw new Error('Failed to parse response');
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    log.success(`Generated ${parsed.events?.length || 0} events`);
-    return parsed.events || [];
-  } catch (error) {
-    log.error(`Hugging Face API error: ${error.message}`);
-    throw error;
-  }
-}
+  ];
+};
 
 function groupEventsByRegion(events) {
   const grouped = {};
@@ -120,7 +165,7 @@ function groupEventsByRegion(events) {
   return grouped;
 }
 
-function generateEmailHTML(events, subscriber) {
+function generateEmailHTML(events) {
   const groupedByRegion = groupEventsByRegion(events);
   
   let eventHTML = '';
@@ -164,7 +209,7 @@ function generateEmailHTML(events, subscriber) {
     </div>
     ${eventHTML}
     <div class="footer">
-      <p>Happy exploring! 🚀</p>
+      <p>Have fun! See you next week! 🚀</p>
     </div>
   </div>
 </body>
@@ -173,18 +218,15 @@ function generateEmailHTML(events, subscriber) {
 
 async function sendWeeklyDigest() {
   try {
-    log.info('Starting weekly digest (Hugging Face FREE!)...');
+    log.info('Starting weekly digest...');
     console.log('');
     
     const result = await pool.query(`
       SELECT 
         u.id,
-        u.email,
-        up.event_types,
-        up.regions
+        u.email
       FROM subscriptions s
       JOIN users u ON s.user_id = u.id
-      JOIN user_preferences up ON u.id = up.user_id
       WHERE s.is_active = true
     `);
 
@@ -192,38 +234,26 @@ async function sendWeeklyDigest() {
     log.success(`Found ${subscribers.length} subscribers`);
     
     if (subscribers.length === 0) {
-      log.warn('No active subscribers - add test subscriber to database');
+      log.warn('No active subscribers');
       await pool.end();
       return;
     }
 
     console.log('');
     
+    // Get this weekend's events
+    const events = getWeekendEvents();
+    log.success(`Loaded ${events.length} events`);
+
     let successCount = 0;
-    let failureCount = 0;
 
     for (let i = 0; i < subscribers.length; i++) {
       const subscriber = subscribers[i];
       
       try {
-        log.info(`[${i + 1}/${subscribers.length}] Processing ${subscriber.email}...`);
+        log.info(`[${i + 1}/${subscribers.length}] Sending to ${subscriber.email}...`);
 
-        const regions = subscriber.regions || ['San Francisco', 'South Bay', 'East Bay', 'Peninsula'];
-        const eventTypes = subscriber.event_types || {
-          trivia: true,
-          socialMeals: true,
-          sports: true,
-          games: true
-        };
-
-        const events = await generateEvents(regions, eventTypes);
-
-        if (!events || events.length === 0) {
-          log.warn(`  No events, skipping`);
-          continue;
-        }
-
-        const html = generateEmailHTML(events, subscriber);
+        const html = generateEmailHTML(events);
 
         await sgMail.send({
           to: subscriber.email,
@@ -232,7 +262,7 @@ async function sendWeeklyDigest() {
           html: html
         });
 
-        log.success(`  Email sent`);
+        log.success(`  Email sent!`);
         successCount++;
 
         await pool.query(
@@ -242,7 +272,6 @@ async function sendWeeklyDigest() {
 
       } catch (error) {
         log.error(`  Error: ${error.message}`);
-        failureCount++;
         
         try {
           await pool.query(
@@ -256,7 +285,7 @@ async function sendWeeklyDigest() {
     }
 
     console.log('');
-    log.success(`Complete! Sent: ${successCount}, Failed: ${failureCount}`);
+    log.success(`Complete! Sent: ${successCount}/${subscribers.length}`);
     await pool.end();
     process.exit(successCount > 0 ? 0 : 1);
 
