@@ -1,0 +1,21 @@
+{
+  "name": "bay-area-events",
+  "version": "1.0.0",
+  "description": "AI-powered Bay Area social event finder - Free version using Hugging Face",
+  "scripts": {
+    "send-digest": "node scripts/send-digest.js",
+    "test-workflow": "node scripts/send-digest.js",
+    "dev": "node scripts/send-digest.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.0",
+    "dotenv": "^16.3.1",
+    "@sendgrid/mail": "^7.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["bay-area", "events", "free", "huggingface"],
+  "author": "Your Name",
+  "license": "MIT"
+}
