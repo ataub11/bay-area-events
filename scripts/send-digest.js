@@ -28,7 +28,7 @@ const log = {
 
 async function callHuggingFaceAPI(prompt) {
   const response = await fetch(
-    'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1',
+    'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta',
     {
       headers: {
         Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
